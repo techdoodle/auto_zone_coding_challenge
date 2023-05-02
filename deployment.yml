@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+    spec:
+      containers:
+      - name: test-app
+        image: techdoodle/flask-kubernetes:latest
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        volumeMounts:
+        - name: certs
+          mountPath: /etc/certs
+          readOnly: true
+        env:
+        - name: FLASK_RUN_CERT
+          value: "/etc/certs/tls.crt"
+        - name: FLASK_RUN_KEY
+          value: "/etc/certs/tls.key"
+      volumes:
+      - name: certs
+        secret:
+          secretName: pv
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-app-service
+spec:
+  selector:
+    app: flask-app-deployment
+  ports:
+  - port: 5000
+    targetPort: 5000
+    nodePort: 30008
+  type: LoadBalancer
